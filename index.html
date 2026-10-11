@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SKM Studio — Coming Soon</title>
+<meta name="description" content="Something new is coming from SKM Studio Network. We're building — check back soon.">
+<meta name="robots" content="noindex, follow">
+<meta name="theme-color" content="#0f172a">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<style>
+  :root{--ink:#e6ebf3;--mut:#94a3b8;--bg:#0b1220;--ac:#2563eb;--ac2:#60a5fa}
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:radial-gradient(1200px 600px at 70% -10%,#152238,transparent),var(--bg);color:var(--ink);
+       font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;display:grid;place-items:center;padding:24px}
+  .card{max-width:640px;text-align:center}
+  .mark{width:64px;height:64px;border-radius:18px;background:linear-gradient(135deg,var(--ac),var(--ac2));
+        display:grid;place-items:center;margin:0 auto 26px;box-shadow:0 12px 40px #2563eb55}
+  .mark svg{width:34px;height:34px}
+  h1{font-size:clamp(28px,6vw,46px);letter-spacing:-.03em;margin:0 0 12px;font-weight:800}
+  p{color:var(--mut);font-size:17px;line-height:1.6;margin:0 auto 26px;max-width:52ch}
+  .bar{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--ac2);opacity:.5;animation:p 1.2s infinite}
+  .dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
+  @keyframes p{0%,100%{opacity:.25;transform:translateY(0)}50%{opacity:1;transform:translateY(-4px)}}
+  .tag{margin-top:34px;font-size:12px;color:var(--mut);letter-spacing:.14em;text-transform:uppercase}
+  a{color:var(--ac2);text-decoration:none}a:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+  <main class="card">
+    <div class="mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12l1-8.5Z"/>
+      </svg>
+    </div>
+    <h1>Coming soon</h1>
+    <p>We're building something new at <strong>SKM Studio Network</strong>. The site is under construction — please check back shortly.</p>
+    <div class="bar" aria-hidden="true"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+    <div class="tag">SKM Studio Network</div>
+  </main>
+</body>
+</html>
