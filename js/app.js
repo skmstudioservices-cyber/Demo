@@ -17,7 +17,7 @@ function render(el,lat,lng){
   const name=el.tags?.name||el.tags?.operator||CAT.label;
   const d=dist(lat,lng,el.lat||el.center.lat,el.lon||el.center.lon);
   const clat=el.lat||el.center.lat, clon=el.lon||el.center.lon;
-  const dir=`https://www.google.com/maps/dir/?api=1&destination=${clat},${clon}`;
+  const dir=`https://www.google.com/maps/dir/
   const tel=el.tags?.phone?`<a href="tel:${el.tags.phone}">Call</a>`:'';
   const web=el.tags?.website?`<a href="${el.tags.website}" target="_blank" rel="noopener">Website</a>`:'';
   return `<article class="card"><h3>${name}</h3>
@@ -38,12 +38,17 @@ async function search(lat,lng,label){
   }catch(e){ QS('status').textContent='Could not reach OpenStreetMap. Try again.'; }
 }
 function html(e){return (e.tags?.name||'Unnamed')+'<br>'+(e.tags?.['addr:street']||'');}
-QS('geo').onclick=()=>{ QS('status').textContent='Getting your location…';
-  navigator.geolocation?navigator.geolocation.getCurrentPosition(p=>search(p.coords.latitude,p.coords.longitude,'you'),
-    ()=>QS('status').textContent='Location blocked. Type a city instead.'):QS('status').textContent='Geolocation not supported. Type a city.');};
+QS('geo').onclick=()=>{
+  QS('status').textContent='Getting your location…';
+  if(!navigator.geolocation){ QS('status').textContent='Geolocation not supported. Type a city.'; return; }
+  navigator.geolocation.getCurrentPosition(
+    p=>search(p.coords.latitude,p.coords.longitude,'you'),
+    ()=>QS('status').textContent='Location blocked. Type a city instead.'
+  );
+};
 QS('go').onclick=async()=>{const c=QS('city').value.trim();if(!c)return;
   QS('status').textContent='Locating '+c+'…';
-  try{const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(c));
+  try{const r=await fetch('https://nominatim.openstreetmap.org/search'+encodeURIComponent(c));
     const j=await r.json(); if(j[0]) search(parseFloat(j[0].lat),parseFloat(j[0].lon),c); else QS('status').textContent='City not found.';}
   catch{QS('status').textContent='Geocoder unavailable.';}};
 initMap();
