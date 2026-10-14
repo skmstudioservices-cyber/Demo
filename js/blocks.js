@@ -1,13 +1,13 @@
-/* blocks.js — Expandable Near-Me Blocks (SKM pattern) — CARD layout.
- * Renders 3-6 blocks; each block is a titled card grid of real locations.
- * Preview shows a few cards; "Read more" expands the block to ~50 cards in a
- * scrollable grid. Keeps the long-tail city keywords ON the page so the page
- * (not a farm of thin near-me pages) is what ranks / gets canonicalised.
- * Data: city pools below (served from the static build). Grown daily from GSC/GA/search.
+/* blocks.js — Expandable Near-Me Blocks (SKM pattern) — CARD grid + detail modal.
+ * 3-6 blocks; each block = a titled card grid of real locations. Preview shows a
+ * few cards; "Read more" expands the block to ~50 cards in a scrollable grid.
+ * Clicking a card opens a POPUP (modal) with the full details for that city.
+ * Keeps the long-tail city keywords ON the page so the page ranks / gets canonicalised.
  */
 (function () {
   var CAT = (window.CAT && window.CAT.label) || 'Near Me';
   var short = CAT.replace(/\s*Near Me\s*$/i, '').trim() || 'places';
+  var lower = short.toLowerCase();
   var ICON = '📍';
 
   var GROUPS = [
@@ -18,8 +18,8 @@
     { title: 'East India', cities: ['Patna', 'Ranchi', 'Jamshedpur', 'Bhubaneswar', 'Cuttack', 'Guwahati', 'Siliguri', 'Dhanbad', 'Gaya', 'Muzaffarpur', 'Agartala', 'Imphal', 'Shillong'] }
   ];
 
-  var PREVIEW = 6;   // cards shown before "Read more"
-  var CAP = 50;      // cards after expand
+  var PREVIEW = 6;
+  var CAP = 50;
 
   var css =
     '<style>' +
@@ -38,19 +38,67 @@
     '.nb-card .nb-m{display:block;color:#5b6b80;font-size:.78rem;margin-top:.12rem}' +
     '.nmore{margin:.7rem 0 0;background:#eef3fa;border:1px solid #dbe4f0;color:#1a5fb4;font-weight:700;cursor:pointer;font-size:.85rem;padding:.45rem .9rem;border-radius:999px}' +
     '.nmore:hover{background:#dde9f7;border-color:#1a5fb4}' +
+    /* modal */
+    '.nb-modal{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.55);padding:1rem}' +
+    '.nb-modal.open{display:flex}' +
+    '.nb-modal .box{background:#fff;border-radius:16px;max-width:460px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.35);overflow:hidden;animation:nbpop .18s ease}' +
+    '@keyframes nbpop{from{transform:scale(.96);opacity:.6}to{transform:none;opacity:1}}' +
+    '.nb-modal .hd{background:linear-gradient(135deg,#12263f,#2563eb);color:#fff;padding:1rem 1.1rem;display:flex;justify-content:space-between;align-items:flex-start;gap:.6rem}' +
+    '.nb-modal .hd h3{margin:0;font-size:1.15rem}' +
+    '.nb-modal .hd .x{background:none;border:0;color:#fff;font-size:1.4rem;line-height:1;cursor:pointer;opacity:.85}' +
+    '.nb-modal .bd{padding:1rem 1.1rem}' +
+    '.nb-modal .bd p{margin:.3rem 0;color:#243141;font-size:.92rem;line-height:1.6}' +
+    '.nb-modal .kv{display:flex;gap:.4rem;flex-wrap:wrap;margin:.6rem 0}' +
+    '.nb-modal .kv span{background:#eef3fa;border:1px solid #e3e8f0;border-radius:999px;padding:.25rem .6rem;font-size:.78rem;color:#1a5fb4}' +
+    '.nb-modal .acts{display:flex;gap:.5rem;margin-top:.9rem}' +
+    '.nb-modal .acts a,.nb-modal .acts button{flex:1;text-align:center;border:0;border-radius:10px;padding:.7rem;font-weight:700;font-size:.9rem;cursor:pointer;text-decoration:none;font-family:inherit}' +
+    '.nb-modal .acts .go{background:#2563eb;color:#fff}' +
+    '.nb-modal .acts .gm{background:#eef3fa;color:#12263f;border:1px solid #e3e8f0}' +
     '@media(max-width:520px){.nb-grid{grid-template-columns:1fr 1fr}.nb-card{padding:.6rem}}' +
     '</style>';
+
+  var modalEl = null;
+
+  function ensureModal() {
+    if (modalEl) return modalEl;
+    modalEl = document.createElement('div');
+    modalEl.className = 'nb-modal';
+    modalEl.setAttribute('role', 'dialog');
+    modalEl.setAttribute('aria-modal', 'true');
+    modalEl.innerHTML = '<div class="box"><div class="hd"><h3></h3><button class="x" aria-label="Close">×</button></div><div class="bd"></div></div>';
+    document.body.appendChild(modalEl);
+    modalEl.addEventListener('click', function (e) {
+      if (e.target === modalEl || e.target.classList.contains('x')) closeModal();
+    });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeModal(); });
+    return modalEl;
+  }
+
+  function closeModal() { if (modalEl) modalEl.classList.remove('open'); }
+
+  function openModal(city) {
+    var m = ensureModal();
+    var gm = 'https://www.google.com/maps/search/' + encodeURIComponent(short + ' near ' + city);
+    m.querySelector('.hd h3').textContent = city;
+    m.querySelector('.bd').innerHTML =
+      '<p><strong>' + short + ' near me in ' + city + '</strong> — see the nearest ' + lower + ' around ' + city + ' on the live map, sorted by distance.</p>' +
+      '<div class="kv"><span>📍 ' + city + '</span><span>' + short + '</span><span>Live map</span><span>Free</span></div>' +
+      '<p>Tap <em>Show on map</em> to plot ' + lower + ' around ' + city + ', or open Google Maps for directions.</p>' +
+      '<div class="acts"><button class="go" type="button">Show on map</button><a class="gm" href="' + gm + '" target="_blank" rel="noopener">Google Maps</a></div>';
+    m.querySelector('.go').onclick = function () { closeModal(); runSearch(city); };
+    m.classList.add('open');
+  }
 
   function runSearch(city) {
     var inp = document.getElementById('city'), go = document.getElementById('go');
     if (!inp || !go) return;
     inp.value = city; go.click();
-    var m = document.getElementById('map');
-    if (m && m.scrollIntoView) m.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    var mp = document.getElementById('map');
+    if (mp && mp.scrollIntoView) mp.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   function card(city) {
-    return '<div class="nb-card" data-city="' + city + '">' +
+    return '<div class="nb-card" data-city="' + city + '" tabindex="0">' +
       '<span class="nb-ic">' + ICON + '</span>' +
       '<span class="nb-tx"><span class="nb-t">' + city + '</span>' +
       '<span class="nb-m">' + short + ' near me</span></span></div>';
@@ -80,7 +128,7 @@
 
     host.addEventListener('click', function (e) {
       var cardEl = e.target.closest ? e.target.closest('.nb-card') : null;
-      if (cardEl) { runSearch(cardEl.getAttribute('data-city')); return; }
+      if (cardEl) { openModal(cardEl.getAttribute('data-city')); return; }
       var btn = e.target.closest ? e.target.closest('.nmore') : null;
       if (btn) {
         var gi = btn.getAttribute('data-more');
@@ -89,6 +137,11 @@
         var open = box.classList.toggle('expanded');
         for (var i = PREVIEW; i < kids.length; i++) kids[i].style.display = open ? '' : 'none';
         btn.textContent = open ? 'Show less ▴' : 'Read more ▾ (' + kids.length + ' cities)';
+      }
+    });
+    host.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && e.target.classList && e.target.classList.contains('nb-card')) {
+        openModal(e.target.getAttribute('data-city'));
       }
     });
 
