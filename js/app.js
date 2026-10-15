@@ -45,6 +45,19 @@ async function search(lat, lng, label) {
       .sort(function (a, b) { return dist(lat, lng, a.la, a.lo) - dist(lat, lng, b.la, b.lo); });
     QS('out').innerHTML = withC.length ? withC.map(function (x) { return render(x.e, lat, lng); }).join('') : '<p class="status">Nothing found in this radius. Try a bigger radius.</p>';
     withC.forEach(function (x) { L.marker([x.la, x.lo]).addTo(layer).bindPopup(html(x.e)); });
+    try {
+      var old = document.getElementById('ld-results'); if (old) old.remove();
+      var ld = { '@context':'https://schema.org','@type':'ItemList',
+        name:((window.CAT&&CAT.label)||'Near me')+' — results',
+        numberOfItems: withC.length,
+        itemListElement: withC.slice(0,50).map(function (x,i) { var t=x.e.tags||{};
+          return { '@type':'ListItem', position:i+1, item:{ '@type':(t.amenity||t.shop)?'LocalBusiness':'Place',
+            name:(t.name||t.operator||'Place'), url:t.website||undefined, telephone:t.phone||undefined,
+            geo:{ '@type':'GeoCoordinates', latitude:x.la, longitude:x.lo },
+            address:{ '@type':'PostalAddress', streetAddress:t['addr:street']||undefined, addressLocality:t['addr:city']||undefined, addressCountry:'IN' } } }; }) };
+      var s=document.createElement('script'); s.type='application/ld+json'; s.id='ld-results'; s.textContent=JSON.stringify(ld); document.head.appendChild(s);
+    } catch(e){}
+
     QS('status').textContent = withC.length + ' places found near ' + (label || 'you');
   } catch (e) { QS('status').textContent = 'Could not reach OpenStreetMap. Try again.'; }
 }
