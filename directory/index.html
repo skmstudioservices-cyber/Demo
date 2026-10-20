@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SKM Directory — Local Business Directory (JustDial-style, open data)</title>
+<meta name="description" content="A JustDial-style local business directory powered by open data: search real shops, ATMs, hospitals and more by city and category, with maps and contact details.">
+<link rel="canonical" href="https://demo-vmv.pages.dev/directory/">
+<meta name="robots" content="index,follow">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebSite","name":"SKM Directory","url":"https://demo-vmv.pages.dev/directory/","potentialAction":{"@type":"SearchAction","target":"https://demo-vmv.pages.dev/directory/?q={q}","query-input":"required name=q"}}
+</script>
+<style>
+  :root{--bg:#f7f8fa;--card:#fff;--line:#e7ebf0;--txt:#0f172a;--muted:#5b6b80;--accent:#2563eb;--gold:#b45309}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:ui-sans-serif,system-ui,'Segoe UI',Roboto,Arial,sans-serif;background:var(--bg);color:var(--txt);line-height:1.6}
+  .wrap{max-width:1040px;margin:0 auto;padding:18px}
+  header.top{background:#0f172a;color:#fff;padding:16px 0}
+  header.top .wrap{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  header.top h1{font-size:1.05rem;margin:0}
+  header.top a{color:#cbd5e1;text-decoration:none;font-size:.86rem}
+  .bar{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .bar input,.bar select{padding:10px;border-radius:9px;border:1px solid var(--line);background:#0d1526;color:#fff}
+  .bar input{flex:1;min-width:200px}
+  .bar button{padding:10px 14px;border-radius:9px;border:0;background:var(--accent);color:#fff;font-weight:600;cursor:pointer}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin:14px 0}
+  .chips button{padding:6px 11px;border-radius:20px;border:1px solid var(--line);background:#fff;font-size:.8rem;cursor:pointer;color:var(--muted)}
+  .chips button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .card h3{margin:.1rem 0 .3rem;font-size:1rem}
+  .card .meta{color:var(--muted);font-size:.82rem}
+  .card .row{display:flex;gap:8px;margin-top:10px}
+  .card a,.card button{font-size:.8rem;padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--txt);text-decoration:none;cursor:pointer}
+  .badge{display:inline-block;font-size:.68rem;padding:2px 7px;border-radius:20px;background:#fef3c7;color:var(--gold);font-weight:700;margin-left:6px}
+  .empty{color:var(--muted);padding:20px 0}
+  h2{font-size:1.1rem;margin:1.4rem 0 .4rem}
+  footer{border-top:1px solid var(--line);margin-top:26px;padding:16px 0;color:var(--muted);font-size:.8rem}
+  .qa details{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:8px 0}
+  .qa summary{font-weight:600;cursor:pointer}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <h1>📇 SKM Directory</h1>
+    <a href="/maps/">Open map explorer →</a>
+    <div class="bar" style="width:100%">
+      <input id="q" placeholder="What are you looking for? (e.g. ATM, hospital, cafe)">
+      <select id="city">
+        <option value="Delhi">Delhi</option><option value="Mumbai">Mumbai</option>
+        <option value="Bengaluru">Bengaluru</option><option value="Hyderabad">Hyderabad</option>
+        <option value="Chennai">Chennai</option><option value="Kolkata">Kolkata</option>
+        <option value="Pune">Pune</option><option value="Lucknow">Lucknow</option>
+        <option value="Patna">Patna</option><option value="Jaipur">Jaipur</option>
+      </select>
+      <button id="go">Search</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="chips" id="chips"></div>
+  <p id="status" class="empty">Pick a category or search a city to load real places from OpenStreetMap.</p>
+  <div class="grid" id="grid"></div>
+
+  <h2>About this directory</h2>
+  <p>SKM Directory is a JustDial-style local business directory built entirely on <strong>open data</strong> — real places from OpenStreetMap, no scraped or fake listings. Search by city and category to see shops, services and amenities with their location on a map.</p>
+
+  <h2 class="qa" style="font-size:1.1rem">Frequently asked questions</h2>
+  <div class="qa">
+    <details open><summary>Is the data real?</summary><p>Yes — every result comes from OpenStreetMap, the open map database, so it reflects real mapped places rather than generated content.</p></details>
+    <details><summary>How is this different from JustDial?</summary><p>JustDial relies on a proprietary, partly paid listings database. This directory uses open map data, so it is free, transparent and community-maintained.</p></details>
+    <details><summary>Can I use it offline or self-host it?</summary><p>Yes — the stack is free and keyless (OpenStreetMap tiles + Overpass API), so it can run on any static host.</p></details>
+    <details><summary>Does it show contact details?</summary><p>Where OpenStreetMap has a phone or website for a place, it is shown on the card.</p></details>
+  </div>
+
+  <footer>
+    Data © OpenStreetMap contributors (ODbL). Built on free, keyless services. <a href="/maps/">Map explorer</a>.
+  </footer>
+</main>
+
+<script>
+const CATS=[["atm","🏧 ATM","amenity=atm"],["fuel","⛽ Petrol","amenity=fuel"],["hospital","🏥 Hospitals","amenity=hospital"],
+["pharmacy","💊 Pharmacy","amenity=pharmacy"],["restaurant","🍽️ Restaurants","amenity=restaurant"],["cafe","☕ Cafes","amenity=cafe"],
+["bank","🏦 Banks","amenity=bank"],["hotel","🛏️ Hotels","tourism=hotel"],["toilets","🚻 Public toilets","amenity=toilets"],
+["school","🏫 Schools","amenity=school"]];
+const CITY_COORD={Delhi:[28.6139,77.2090],Mumbai:[19.0760,72.8777],Bengaluru:[12.9716,77.5946],Hyderabad:[17.3850,78.4867],
+Chennai:[13.0827,80.2707],Kolkata:[22.5726,88.3639],Pune:[18.5204,73.8567],Lucknow:[26.8467,80.9462],Patna:[25.5941,85.1376],Jaipur:[26.9124,75.7873]};
+let cat=null;
+const chips=document.getElementById('chips');
+CATS.forEach(([id,label])=>{ const b=document.createElement('button'); b.textContent=label;
+  b.onclick=()=>{ document.querySelectorAll('.chips button').forEach(x=>x.classList.remove('on'));
+    if(cat===id){cat=null;return;} b.classList.add('on'); cat=id; load(); };
+  chips.appendChild(b); });
+
+function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+async function load(){
+  const city=document.getElementById('city').value;
+  const term=document.getElementById('q').value.trim();
+  const [lat,lon]=CITY_COORD[city]||[28.6,77.2];
+  let filter = cat ? CATS.find(c=>c[0]===cat)[2] : (term?`name~"${term}",i`:"amenity=restaurant");
+  const q=`[out:json][timeout:30];(node[${filter}](around:6000,${lat},${lon});way[${filter}](around:6000,${lat},${lon}););out center 60;`;
+  const st=document.getElementById('status'); st.textContent='Loading real places from OpenStreetMap…';
+  try{
+    const res=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:'data='+encodeURIComponent(q)});
+    const j=await res.json();
+    const list=j.elements.filter(e=>(e.tags&&e.tags.name)).map(e=>({
+      name:e.tags.name, kind:(e.tags.amenity||e.tags.tourism||e.tags.shop||'').replace(/_/g,' '),
+      phone:e.tags.phone||e.tags['contact:phone'], web:e.tags.website||e.tags['contact:website'],
+      lat:e.lat??(e.center&&e.center.lat), lon:e.lon??(e.center&&e.center.lon)
+    })).slice(0,60);
+    const grid=document.getElementById('grid'); grid.innerHTML='';
+    if(!list.length){ st.textContent='No named places found for that search — try another category or city.'; return; }
+    st.textContent=`${list.length} real places in ${city}`;
+    list.forEach(p=>{
+      const d=document.createElement('div'); d.className='card';
+      d.innerHTML=`<h3>${esc(p.name)}<span class="badge">Open data</span></h3>
+        <div class="meta">${esc(p.kind)} · ${city}${p.phone?' · ☎ '+esc(p.phone):''}</div>
+        <div class="row"><a href="https://www.openstreetmap.org/?mlat=${p.lat}&mlon=${p.lon}#map=17/${p.lat}/${p.lon}" target="_blank" rel="noopener">View on map</a>
+        ${p.web?`<a href="${esc(p.web)}" target="_blank" rel="noopener nofollow">Website</a>`:''}
+        <button data-n="${esc(p.name)}" data-k="${esc(p.kind)}" data-la="${p.lat}" data-lo="${p.lon}">Details</button></div>`;
+      grid.appendChild(d);
+    });
+    // LocalBusiness schema for the first 20 visible places (helps rich results)
+    const ld={"@context":"https://schema.org","@type":"ItemList","name":`${cat?CATS.find(c=>c[0]===cat)[1]:term} in ${city}`,
+      "itemListElement":list.slice(0,20).map((p,i)=>({"@type":"ListItem","position":i+1,"item":{"@type":"LocalBusiness","name":p.name,"address":{"@type":"PostalAddress","addressLocality":city,"addressCountry":"IN"},"geo":{"@type":"GeoCoordinates","latitude":p.lat,"longitude":p.lon},"url":`https://demo-vmv.pages.dev/directory/#${encodeURIComponent(p.name)}`}}))};
+    let tag=document.getElementById('ld'); if(!tag){tag=document.createElement('script');tag.id='ld';tag.type='application/ld+json';document.head.appendChild(tag);}
+    tag.textContent=JSON.stringify(ld);
+  }catch(e){ st.textContent='Could not reach the open-data service just now — please try again.'; }
+}
+document.getElementById('go').onclick=load;
+document.getElementById('q').addEventListener('keydown',e=>{if(e.key==='Enter')load();});
+document.getElementById('city').addEventListener('change',load);
+</script>
+</body>
+</html>

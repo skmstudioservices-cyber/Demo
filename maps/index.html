@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SKM Maps — Open Map Explorer (Google-Maps-style, free & keyless)</title>
+<meta name="description" content="A Google-Maps-style explorer built on free open data: MapLibre + OpenStreetMap tiles, Nominatim search and Overpass POIs. No API key, no tracking.">
+<link rel="canonical" href="https://demo-vmv.pages.dev/maps/">
+<meta name="robots" content="index,follow">
+<!-- MapLibre GL JS (free, open source) -->
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<style>
+  :root{--bg:#0b1220;--panel:#121a2b;--line:#22304a;--txt:#e6edf7;--muted:#93a4bd;--accent:#3b82f6}
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;font-family:ui-sans-serif,system-ui,'Segoe UI',Roboto,Arial,sans-serif;background:var(--bg);color:var(--txt)}
+  #app{display:grid;grid-template-columns:360px 1fr;height:100%}
+  aside{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+  header{padding:14px;border-bottom:1px solid var(--line)}
+  h1{font-size:1.05rem;margin:0 0 8px}
+  .search{display:flex;gap:6px}
+  .search input{flex:1;padding:10px;border-radius:9px;border:1px solid var(--line);background:#0d1526;color:var(--txt)}
+  .search button{padding:10px 12px;border-radius:9px;border:0;background:var(--accent);color:#fff;font-weight:600;cursor:pointer}
+  .cats{display:flex;flex-wrap:wrap;gap:6px;padding:10px 14px;border-bottom:1px solid var(--line)}
+  .cats button{padding:6px 10px;border-radius:20px;border:1px solid var(--line);background:#0d1526;color:var(--muted);font-size:.78rem;cursor:pointer}
+  .cats button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  #results{overflow:auto;padding:10px 14px;flex:1}
+  .item{padding:10px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;background:#0d1526}
+  .item b{display:block;font-size:.9rem}
+  .item small{color:var(--muted)}
+  .item button{margin-top:6px;font-size:.76rem;padding:4px 8px;border-radius:7px;border:1px solid var(--line);background:#0d1526;color:var(--txt);cursor:pointer}
+  #map{height:100%}
+  .hint{color:var(--muted);font-size:.76rem;padding:0 14px 10px}
+  @media(max-width:820px){#app{grid-template-columns:1fr;grid-template-rows:46vh 54vh}aside{order:2;border-right:0;border-top:1px solid var(--line)}#map{order:1}}
+</style>
+</head>
+<body>
+<div id="app">
+  <aside>
+    <header>
+      <h1>🗺️ SKM Maps — open explorer</h1>
+      <div class="search">
+        <input id="q" placeholder="Search a place in India…" aria-label="Search">
+        <button id="go">Search</button>
+      </div>
+      <div class="hint" style="padding:8px 0 0">Free stack: MapLibre + OpenStreetMap + Nominatim + Overpass. No API key.</div>
+    </header>
+    <div class="cats" id="cats"></div>
+    <div id="results"><p class="hint">Search a place, or tap a category to load nearby places.</p></div>
+  </aside>
+  <div id="map"></div>
+</div>
+<script>
+const CATS = [
+  ["atm","🏧 ATM","amenity=atm"],
+  ["fuel","⛽ Fuel","amenity=fuel"],
+  ["hospital","🏥 Hospital","amenity=hospital"],
+  ["pharmacy","💊 Pharmacy","amenity=pharmacy"],
+  ["restaurant","🍽️ Restaurant","amenity=restaurant"],
+  ["cafe","☕ Cafe","amenity=cafe"],
+  ["hotel","🛏️ Hotel","tourism=hotel"],
+  ["toilets","🚻 Toilets","amenity=toilets"],
+  ["bank","🏦 Bank","amenity=bank"],
+  ["parking","🅿️ Parking","amenity=parking"],
+];
+let activeCat=null, markers=[];
+const map = new maplibregl.Map({
+  container:'map',
+  style:{ version:8, sources:{ osm:{ type:'raster', tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize:256, attribution:'© OpenStreetMap contributors' } },
+    layers:[{ id:'osm', type:'raster', source:'osm' }] },
+  center:[78.9629,20.5937], zoom:4
+});
+map.addControl(new maplibregl.NavigationControl(),'top-right');
+map.addControl(new maplibregl.GeolocateControl({ positionOptions:{enableHighAccuracy:true}, trackUserLocation:true }),'top-right');
+
+const catsEl=document.getElementById('cats');
+CATS.forEach(([id,label])=>{
+  const b=document.createElement('button'); b.textContent=label;
+  b.onclick=()=>{ document.querySelectorAll('.cats button').forEach(x=>x.classList.remove('on'));
+    if(activeCat===id){activeCat=null; return;} b.classList.add('on'); activeCat=id; loadCat(id); };
+  catsEl.appendChild(b);
+});
+
+function clearMarkers(){ markers.forEach(m=>m.remove()); markers=[]; }
+function render(list){
+  const r=document.getElementById('results'); r.innerHTML='';
+  if(!list.length){ r.innerHTML='<p class="hint">Nothing found nearby. Move the map or try another category.</p>'; return; }
+  list.forEach(p=>{
+    const d=document.createElement('div'); d.className='item';
+    d.innerHTML=`<b>${p.name||'Unnamed'}</b><small>${p.kind||''} ${p.dist!=null?'· '+(p.dist/1000).toFixed(1)+' km':''}</small>`;
+    const btn=document.createElement('button'); btn.textContent='Show on map';
+    btn.onclick=()=>{ map.flyTo({center:[p.lon,p.lat],zoom:16}); };
+    d.appendChild(btn); r.appendChild(d);
+  });
+}
+async function loadCat(id){
+  const [ , , filter]=CATS.find(c=>c[0]===id);
+  const c=map.getCenter(); const R=5000;
+  const q=`[out:json][timeout:25];node[${filter}](around:${R},${c.lat},${c.lng});out body 40;`;
+  document.getElementById('results').innerHTML='<p class="hint">Loading nearby places…</p>';
+  try{
+    const res=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:'data='+encodeURIComponent(q)});
+    const j=await res.json();
+    clearMarkers();
+    const list=j.elements.map(e=>({name:e.tags&&e.tags.name,kind:e.tags&&(e.tags.amenity||e.tags.tourism),lat:e.lat,lon:e.lon,
+      dist:map.project([e.lon,e.lat]).sub(map.project([c.lng,c.lat])).mag()*40})).slice(0,40);
+    list.forEach(p=>{ const m=new maplibregl.Marker({color:'#3b82f6'}).setLngLat([p.lon,p.lat]).addTo(map); markers.push(m); });
+    render(list);
+  }catch(e){ document.getElementById('results').innerHTML='<p class="hint">Could not reach Overpass just now — try again in a moment.</p>'; }
+}
+async function search(){
+  const q=document.getElementById('q').value.trim(); if(!q) return;
+  document.getElementById('results').innerHTML='<p class="hint">Searching…</p>';
+  try{
+    const res=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=6&q='+encodeURIComponent(q),{headers:{'Accept':'application/json'}});
+    const j=await res.json();
+    if(!j.length){ document.getElementById('results').innerHTML='<p class="hint">No match found.</p>'; return; }
+    clearMarkers();
+    const r=document.getElementById('results'); r.innerHTML='';
+    j.forEach(p=>{
+      const d=document.createElement('div'); d.className='item';
+      d.innerHTML=`<b>${p.display_name.split(',')[0]}</b><small>${p.display_name.split(',').slice(1,4).join(', ')}</small>`;
+      const btn=document.createElement('button'); btn.textContent='Go';
+      btn.onclick=()=>map.flyTo({center:[+p.lon,+p.lat],zoom:15});
+      d.appendChild(btn); r.appendChild(d);
+    });
+    map.flyTo({center:[+j[0].lon,+j[0].lat],zoom:13});
+  }catch(e){ document.getElementById('results').innerHTML='<p class="hint">Search failed — try again.</p>'; }
+}
+document.getElementById('go').onclick=search;
+document.getElementById('q').addEventListener('keydown',e=>{ if(e.key==='Enter') search(); });
+</script>
+</body>
+</html>
