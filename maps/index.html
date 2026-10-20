@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SKM Maps — Open Map Explorer (Google-Maps-style, free & keyless)</title>
-<meta name="description" content="A Google-Maps-style explorer built on free open data: MapLibre + OpenStreetMap tiles, Nominatim search and Overpass POIs. No API key, no tracking.">
+<title>SKM Maps — Open Map Explorer (Leaflet + OpenStreetMap, free & keyless)</title>
+<meta name="description" content="A Google-Maps-style explorer built on free open data: Leaflet + OpenStreetMap tiles, Nominatim search and Overpass POIs. No API key, no paid plan, no tracking.">
 <link rel="canonical" href="https://demo-vmv.pages.dev/maps/">
 <meta name="robots" content="index,follow">
-<!-- MapLibre GL JS (free, open source) -->
-<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
-<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<!-- Leaflet (free, open source, no API key) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
   :root{--bg:#0b1220;--panel:#121a2b;--line:#22304a;--txt:#e6edf7;--muted:#93a4bd;--accent:#3b82f6}
   *{box-sizing:border-box}
@@ -29,8 +29,9 @@
   .item b{display:block;font-size:.9rem}
   .item small{color:var(--muted)}
   .item button{margin-top:6px;font-size:.76rem;padding:4px 8px;border-radius:7px;border:1px solid var(--line);background:#0d1526;color:var(--txt);cursor:pointer}
-  #map{height:100%}
+  #map{height:100%;width:100%}
   .hint{color:var(--muted);font-size:.76rem;padding:0 14px 10px}
+  .leaflet-container{background:#0d1526}
   @media(max-width:820px){#app{grid-template-columns:1fr;grid-template-rows:46vh 54vh}aside{order:2;border-right:0;border-top:1px solid var(--line)}#map{order:1}}
 </style>
 </head>
@@ -43,7 +44,7 @@
         <input id="q" placeholder="Search a place in India…" aria-label="Search">
         <button id="go">Search</button>
       </div>
-      <div class="hint" style="padding:8px 0 0">Free stack: MapLibre + OpenStreetMap + Nominatim + Overpass. No API key.</div>
+      <div class="hint" style="padding:8px 0 0">Free stack: <b>Leaflet</b> + OpenStreetMap + Nominatim + Overpass. No API key.</div>
     </header>
     <div class="cats" id="cats"></div>
     <div id="results"><p class="hint">Search a place, or tap a category to load nearby places.</p></div>
@@ -63,15 +64,15 @@ const CATS = [
   ["bank","🏦 Bank","amenity=bank"],
   ["parking","🅿️ Parking","amenity=parking"],
 ];
-let activeCat=null, markers=[];
-const map = new maplibregl.Map({
-  container:'map',
-  style:{ version:8, sources:{ osm:{ type:'raster', tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize:256, attribution:'© OpenStreetMap contributors' } },
-    layers:[{ id:'osm', type:'raster', source:'osm' }] },
-  center:[78.9629,20.5937], zoom:4
-});
-map.addControl(new maplibregl.NavigationControl(),'top-right');
-map.addControl(new maplibregl.GeolocateControl({ positionOptions:{enableHighAccuracy:true}, trackUserLocation:true }),'top-right');
+let activeCat=null; const layer = L.layerGroup();
+
+const map = L.map('map', { zoomControl:true }).setView([20.5937,78.9629], 4);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom:19, attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+}).addTo(map);
+layer.addTo(map);
+L.control.scale({ imperial:false }).addTo(map);
+map.locate({ setView:false });
 
 const catsEl=document.getElementById('cats');
 CATS.forEach(([id,label])=>{
@@ -81,20 +82,20 @@ CATS.forEach(([id,label])=>{
   catsEl.appendChild(b);
 });
 
-function clearMarkers(){ markers.forEach(m=>m.remove()); markers=[]; }
+function clearMarkers(){ layer.clearLayers(); }
 function render(list){
   const r=document.getElementById('results'); r.innerHTML='';
   if(!list.length){ r.innerHTML='<p class="hint">Nothing found nearby. Move the map or try another category.</p>'; return; }
   list.forEach(p=>{
     const d=document.createElement('div'); d.className='item';
-    d.innerHTML=`<b>${p.name||'Unnamed'}</b><small>${p.kind||''} ${p.dist!=null?'· '+(p.dist/1000).toFixed(1)+' km':''}</small>`;
+    d.innerHTML=`<b>${p.name||'Unnamed'}</b><small>${p.kind||''}${p.dist!=null?' · '+(p.dist/1000).toFixed(1)+' km':''}</small>`;
     const btn=document.createElement('button'); btn.textContent='Show on map';
-    btn.onclick=()=>{ map.flyTo({center:[p.lon,p.lat],zoom:16}); };
+    btn.onclick=()=>{ map.setView([p.lat,p.lon],16); };
     d.appendChild(btn); r.appendChild(d);
   });
 }
 async function loadCat(id){
-  const [ , , filter]=CATS.find(c=>c[0]===id);
+  const filter=CATS.find(c=>c[0]===id)[2];
   const c=map.getCenter(); const R=5000;
   const q=`[out:json][timeout:25];node[${filter}](around:${R},${c.lat},${c.lng});out body 40;`;
   document.getElementById('results').innerHTML='<p class="hint">Loading nearby places…</p>';
@@ -103,8 +104,8 @@ async function loadCat(id){
     const j=await res.json();
     clearMarkers();
     const list=j.elements.map(e=>({name:e.tags&&e.tags.name,kind:e.tags&&(e.tags.amenity||e.tags.tourism),lat:e.lat,lon:e.lon,
-      dist:map.project([e.lon,e.lat]).sub(map.project([c.lng,c.lat])).mag()*40})).slice(0,40);
-    list.forEach(p=>{ const m=new maplibregl.Marker({color:'#3b82f6'}).setLngLat([p.lon,p.lat]).addTo(map); markers.push(m); });
+      dist:map.distance([c.lat,c.lng],[e.lat,e.lon])})).sort((a,b)=>a.dist-b.dist).slice(0,40);
+    list.forEach(p=>{ const m=L.marker([p.lat,p.lon]).addTo(layer); if(p.name) m.bindPopup(`<b>${p.name}</b>`); });
     render(list);
   }catch(e){ document.getElementById('results').innerHTML='<p class="hint">Could not reach Overpass just now — try again in a moment.</p>'; }
 }
@@ -112,7 +113,7 @@ async function search(){
   const q=document.getElementById('q').value.trim(); if(!q) return;
   document.getElementById('results').innerHTML='<p class="hint">Searching…</p>';
   try{
-    const res=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=6&q='+encodeURIComponent(q),{headers:{'Accept':'application/json'}});
+    const res=await fetch('https://nominatim.openstreetmap.org/search'+encodeURIComponent(q),{headers:{'Accept':'application/json'}});
     const j=await res.json();
     if(!j.length){ document.getElementById('results').innerHTML='<p class="hint">No match found.</p>'; return; }
     clearMarkers();
@@ -121,10 +122,11 @@ async function search(){
       const d=document.createElement('div'); d.className='item';
       d.innerHTML=`<b>${p.display_name.split(',')[0]}</b><small>${p.display_name.split(',').slice(1,4).join(', ')}</small>`;
       const btn=document.createElement('button'); btn.textContent='Go';
-      btn.onclick=()=>map.flyTo({center:[+p.lon,+p.lat],zoom:15});
+      btn.onclick=()=>map.setView([+p.lat,+p.lon],15);
       d.appendChild(btn); r.appendChild(d);
+      L.marker([+p.lat,+p.lon]).addTo(layer).bindPopup(p.display_name.split(',')[0]);
     });
-    map.flyTo({center:[+j[0].lon,+j[0].lat],zoom:13});
+    map.setView([+j[0].lat,+j[0].lon],13);
   }catch(e){ document.getElementById('results').innerHTML='<p class="hint">Search failed — try again.</p>'; }
 }
 document.getElementById('go').onclick=search;
